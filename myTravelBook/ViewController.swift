@@ -8,12 +8,21 @@
 import UIKit
 import MapKit
 import CoreLocation
+import CoreData
 
 class ViewController: UIViewController,MKMapViewDelegate,CLLocationManagerDelegate {
     
+    var nameArray = [String]()
+    var idArray = [UUID]()
+    
+    
+    @IBOutlet weak var label: UILabel!
+    @IBOutlet weak var nameText: UITextField!
+    @IBOutlet weak var notText: UITextField!
+    @IBOutlet weak var mapView: MKMapView!
+    
     var locationManager = CLLocationManager()
 
-    @IBOutlet weak var mapView: MKMapView!
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -23,31 +32,48 @@ class ViewController: UIViewController,MKMapViewDelegate,CLLocationManagerDelega
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         
-        let gestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(addLocation(gestureRecognizer:)))
-        gestureRecognizer.minimumPressDuration = 3
+        let gestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(selectedLocation(gestureRecognizer:)))
+        gestureRecognizer.minimumPressDuration = 2
         mapView.addGestureRecognizer(gestureRecognizer)
     }
-    @objc func addLocation(gestureRecognizer:UILongPressGestureRecognizer){
+    @objc func selectedLocation(gestureRecognizer:UILongPressGestureRecognizer){
         
         if gestureRecognizer.state == .began{
-            let touchedPoint = gestureRecognizer.location(in: self.mapView)
-            let touchedCoordinates = mapView.convert(touchedPoint, toCoordinateFrom: mapView)
-            let annotation = MKPointAnnotation()
-            annotation.title = "selected annotation"
-            annotation.subtitle = "i liked this place"
-            annotation.coordinate = touchedCoordinates
-            self.mapView.addAnnotation(annotation)
+            let selectedPoint = gestureRecognizer.location(in: self.mapView)
+            let touchedCoordinates = mapView.convert(selectedPoint, toCoordinateFrom: self.mapView)
             
+            let annotation = MKPointAnnotation()
+            annotation.coordinate = touchedCoordinates
+            annotation.title = nameText.text
+            annotation.subtitle = notText.text
+            self.mapView.addAnnotation(annotation)
         }
+        
     }
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let location = CLLocationCoordinate2D(latitude: locations[0].coordinate.latitude, longitude: locations[0].coordinate.longitude)
-        let span = MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+        let span = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         let region = MKCoordinateRegion (center: location, span: span)
         mapView.setRegion(region, animated: true)
     }
     
-
+    @IBAction func saveButtonClicked(_ sender: Any) {
+        
+        let appDelegate = UIApplication.shared.delegate as! AppDelegate
+        let context = appDelegate.persistentContainer.viewContext
+        let saveData = NSEntityDescription.insertNewObject(forEntityName: "Places", into: context)
+        
+        saveData.setValue(nameText.text, forKey: "name")
+        saveData.setValue(notText.text, forKey: "not")
+        
+        do{
+            try context.save()
+            print("Succes!")
+        }catch{
+            print("error!")
+        }
+    }
+    
 
 }
 
