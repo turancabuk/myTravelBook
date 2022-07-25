@@ -14,6 +14,8 @@ class ViewController: UIViewController,MKMapViewDelegate,CLLocationManagerDelega
     
     var nameArray = [String]()
     var idArray = [UUID]()
+    var chosenLatitude = Double()
+    var chosenLongitude = Double()
     
     
     @IBOutlet weak var label: UILabel!
@@ -42,6 +44,9 @@ class ViewController: UIViewController,MKMapViewDelegate,CLLocationManagerDelega
             let selectedPoint = gestureRecognizer.location(in: self.mapView)
             let touchedCoordinates = mapView.convert(selectedPoint, toCoordinateFrom: self.mapView)
             
+            chosenLatitude = touchedCoordinates.latitude
+            chosenLongitude = touchedCoordinates.longitude
+            
             let annotation = MKPointAnnotation()
             annotation.coordinate = touchedCoordinates
             annotation.title = nameText.text
@@ -65,6 +70,11 @@ class ViewController: UIViewController,MKMapViewDelegate,CLLocationManagerDelega
         
         saveData.setValue(nameText.text, forKey: "name")
         saveData.setValue(notText.text, forKey: "not")
+        saveData.setValue(chosenLatitude, forKey: "latitude")
+        saveData.setValue(chosenLongitude, forKey: "longitude")
+        saveData.setValue(UUID(), forKey: "id")
+        
+        
         
         do{
             try context.save()
@@ -72,6 +82,9 @@ class ViewController: UIViewController,MKMapViewDelegate,CLLocationManagerDelega
         }catch{
             print("error!")
         }
+        
+        NotificationCenter.default.post(name: NSNotification.Name("New Data"), object: nil)
+        self.navigationController?.popViewController(animated: true)
     }
     
 
