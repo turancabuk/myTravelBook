@@ -6,87 +6,120 @@
 //
 
 import UIKit
-import MapKit
-import CoreLocation
 import CoreData
 
-class ViewController: UIViewController,MKMapViewDelegate,CLLocationManagerDelegate {
+
+class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource{
     
+    @IBOutlet weak var tableView: UITableView!
     var nameArray = [String]()
     var idArray = [UUID]()
-    var chosenLatitude = Double()
-    var chosenLongitude = Double()
+    var selectedPlace = ""
+    var selectedPlaceID : UUID?
     
     
-    @IBOutlet weak var label: UILabel!
-    @IBOutlet weak var nameText: UITextField!
-    @IBOutlet weak var notText: UITextField!
-    @IBOutlet weak var mapView: MKMapView!
     
-    var locationManager = CLLocationManager()
+    
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        mapView.delegate = self
-        locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.startUpdatingLocation()
+        tableView.delegate = self
+        tableView.dataSource = self
+      
         
-        let gestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(selectedLocation(gestureRecognizer:)))
-        gestureRecognizer.minimumPressDuration = 2
-        mapView.addGestureRecognizer(gestureRecognizer)
-    }
-    @objc func selectedLocation(gestureRecognizer:UILongPressGestureRecognizer){
+        navigationController?.navigationBar.topItem?.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonItem.SystemItem.add, target: self, action: #selector(addButtonClicked))
         
-        if gestureRecognizer.state == .began{
-            let selectedPoint = gestureRecognizer.location(in: self.mapView)
-            let touchedCoordinates = mapView.convert(selectedPoint, toCoordinateFrom: self.mapView)
-            
-            chosenLatitude = touchedCoordinates.latitude
-            chosenLongitude = touchedCoordinates.longitude
-            
-            let annotation = MKPointAnnotation()
-            annotation.coordinate = touchedCoordinates
-            annotation.title = nameText.text
-            annotation.subtitle = notText.text
-            self.mapView.addAnnotation(annotation)
-        }
-        
-    }
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let location = CLLocationCoordinate2D(latitude: locations[0].coordinate.latitude, longitude: locations[0].coordinate.longitude)
-        let span = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-        let region = MKCoordinateRegion (center: location, span: span)
-        mapView.setRegion(region, animated: true)
-    }
+        getData()
+       
     
-    @IBAction func saveButtonClicked(_ sender: Any) {
+   
+    }
+    @objc override func viewWillAppear(_ animated: Bool) {
+        NotificationCenter.default.addObserver(self, selector: #selector(getData), name: NSNotification.Name("New Data"), object: nil)
+    }
+    @objc func getData(){
+        
         
         let appDelegate = UIApplication.shared.delegate as! AppDelegate
         let context = appDelegate.persistentContainer.viewContext
-        let saveData = NSEntityDescription.insertNewObject(forEntityName: "Places", into: context)
-        
-        saveData.setValue(nameText.text, forKey: "name")
-        saveData.setValue(notText.text, forKey: "not")
-        saveData.setValue(chosenLatitude, forKey: "latitude")
-        saveData.setValue(chosenLongitude, forKey: "longitude")
-        saveData.setValue(UUID(), forKey: "id")
-        
-        
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Places")
+        fetchRequest.returnsObjectsAsFaults = false
         
         do{
-            try context.save()
-            print("Succes!")
+            let results = try context.fetch(fetchRequest)
+            for result in results as! [NSManagedObject] {
+                if let name = result.value(forKey: "name") as? String{
+                    nameArray.append(name)
+                }
+                if let id = result.value(forKey: "id") as? UUID{
+                    idArray.append(id)
+                }
+                tableView.reloadData()
+            }
         }catch{
             print("error!")
         }
         
-        NotificationCenter.default.post(name: NSNotification.Name("New Data"), object: nil)
-        self.navigationController?.popViewController(animated: true)
+        
+        
     }
-    
+    @objc func addButtonClicked(){
+        selectedPlace = ""
+        performSegue(withIdentifier: "toDetailsVC", sender: nil)
+    }
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = UITableViewCell()
+        cell.textLabel?.text = nameArray[indexPath.row]
+        return cell
+    }
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return nameArray.count
+    }
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        selectedPlace = nameArray[indexPath.row]
+        selectedPlaceID = idArray[indexPath.row]
+        performSegue(withIdentifier: "toDetailsVC", sender: nil)
+    }
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        
+        if segue.identifier == "toDetailsVC"{
+            let destinationVC = segue.destination as! detailsViewController
+            destinationVC.selectedPlace = selectedPlace
+            destinationVC.selectedPlaceID = selectedPlaceID
+        }
+        
+    }
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete{
+            
+            let appDelegate = UIApplication.shared.delegate as! AppDelegate
+            let context = appDelegate.persistentContainer.viewContext
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Places")
+            fetchRequest.returnsObjectsAsFaults = false
+            let idString = idArray[indexPath.row].uuidString
+            fetchRequest.predicate = NSPredicate(format: " id = %@", idString)
+            
+            do{
+                let results = try context.fetch(fetchRequest)
+                for result in results as! [NSManagedObject] {
+                    if let id = result.value(forKey: "id") as? UUID{
+                        if id == idArray[indexPath.row]{
+                            context.delete(result)
+                            nameArray.remove(at: indexPath.row)
+                            idArray.remove(at: indexPath.row)
+                            self.tableView.reloadData()
+                        }
+                    }
+                }
+            }catch{
+                
+            }
+            
+            
+            
+        }
+    }
 
 }
 

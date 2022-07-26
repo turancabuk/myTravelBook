@@ -5,7 +5,7 @@
         <attribute name="latitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="longitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>
-        <attribute name="not" optional="YES" attributeType="String"/>
+        <attribute name="note" optional="YES" attributeType="String"/>
     </entity>
     <elements>
         <element name="Places" positionX="-36" positionY="9" width="128" height="104"/>
